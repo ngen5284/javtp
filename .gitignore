@@ -1,0 +1,9 @@
+# Eclipse/Java build output
+bin/
+*.class
+
+# Local scratch database
+test.db
+
+# Local bundle duplicating data/ and lib/
+data.zip
