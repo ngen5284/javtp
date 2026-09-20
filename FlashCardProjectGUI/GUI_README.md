@@ -13,7 +13,7 @@ flashcard.model - Word.java (단어 하나의 정보 담는 곳)
 ## 합치기 전에 확인사항
 
 **1. 패키지 위치가 서로 다릅니다**
-제 코드는 `flashcard.gui`, `flashcard.data`, `flashcard.model`로 나눠져 있는데, 저장소엔 `main` 패키지(`src/main/flashcard.java`)로 되어 있더라고요. 최종적으로 어떤 구조로 갈지 같이 정하고 옮기면 좋을 것 같습니다.
+제 코드는 `flashcard.gui`, `flashcard.data`, `flashcard.model`로 나눠져 있는데, 저장소엔 `main` 패키지(`src/main/flashcard.java`)로 되어 있더라고요. 최종적으로 어떤 구조로 갈지 정하고 옮기면 좋을 것 같습니다.
 
 **2. `module-info.java`에 GUI용 모듈이 빠져있습니다**
 지금은 `requires java.sql;`만 있는데, 제 GUI는 Swing(`javax.swing`)을 쓰니까 `requires java.desktop;`도 추가해야 빌드가 됩니다. 안 그러면 컴파일 에러가 납니다.
