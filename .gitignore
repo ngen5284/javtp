@@ -7,3 +7,4 @@ test.db
 
 # Local bundle duplicating data/ and lib/
 data.zip
+data/progress.db
