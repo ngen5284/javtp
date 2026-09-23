@@ -23,5 +23,3 @@ java --enable-native-access=ALL-UNNAMED -cp "bin;lib/sqlite-jdbc-3.53.4.0.jar" f
 - **모르는 단어만 보기**: 아직 외우지 않은 단어만 표시
 
 학습 기록은 덱별로 저장되며, `data/progress.db`는 Git에서 제외됩니다. `flashcard.progress.ProgressDemo`는 임시 DB를 사용하므로 실제 학습 기록에 영향을 주지 않습니다.
-
-기존 `main.flashcard`는 단어 DB를 콘솔에 출력하는 별도 진입점으로 남겨 두었습니다.
