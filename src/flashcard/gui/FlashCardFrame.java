@@ -31,6 +31,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
@@ -54,6 +55,7 @@ public class FlashCardFrame extends JFrame {
     private final WordRepository repository;
     private final ProgressRepository progressRepository;
     private final String deckName;
+    private final Runnable onBackToMenu; // null이면 "메인으로" 버튼 없음
 
     private final List<Word> allWords = new ArrayList<>();   // repository에서 불러온 전체 단어
     private final List<Word> words = new ArrayList<>();      // 현재 화면에 보여줄(필터링된) 단어
@@ -64,7 +66,10 @@ public class FlashCardFrame extends JFrame {
 
     private int currentIndex = 0;
     private boolean showingMeaning = false;
-    private boolean reviewUnknownOnly = false;
+
+    /** 화면에 보여줄 단어 범위 */
+    private enum FilterMode { ALL, UNKNOWN_ONLY, KNOWN_ONLY }
+    private FilterMode filterMode = FilterMode.ALL;
 
     private static final Color KNOWN_BORDER_COLOR = new Color(56, 142, 60); // 외운 단어 카드 테두리색
 
@@ -78,18 +83,29 @@ public class FlashCardFrame extends JFrame {
     private JButton nextButton;
     private JButton flipButton;
     private JButton shuffleButton;
+    private JButton firstButton;
     private JButton knownToggleButton;
     private JCheckBox unknownOnlyCheckBox;
+    private JCheckBox knownOnlyCheckBox;
 
     public FlashCardFrame(WordRepository repository) {
         this(repository, null, null);
     }
 
     public FlashCardFrame(WordRepository repository, ProgressRepository progressRepository, String deckName) {
+        this(repository, progressRepository, deckName, null);
+    }
+
+    /**
+     * @param onBackToMenu "메인으로" 버튼을 눌렀을 때 실행할 동작. null이면 버튼을 표시하지 않는다.
+     */
+    public FlashCardFrame(WordRepository repository, ProgressRepository progressRepository, String deckName,
+                          Runnable onBackToMenu) {
         super("영단어 플래시카드");
         this.repository = Objects.requireNonNull(repository, "repository는 null일 수 없습니다.");
         this.progressRepository = progressRepository;
         this.deckName = deckName;
+        this.onBackToMenu = onBackToMenu;
         if (progressRepository != null && (deckName == null || deckName.isBlank())) {
             throw new IllegalArgumentException("진도를 저장할 덱 이름이 필요합니다.");
         }
@@ -119,51 +135,70 @@ public class FlashCardFrame extends JFrame {
         applyFilter();
     }
 
-    /** reviewUnknownOnly 값에 따라 words 리스트를 다시 구성한다. */
+    /** filterMode 값에 따라 words 리스트를 다시 구성한다. */
     private void applyFilter() {
-        if (reviewUnknownOnly) {
+        words.clear();
+        if (filterMode == FilterMode.ALL) {
+            words.addAll(allWords);
+        } else {
+            boolean wantKnown = filterMode == FilterMode.KNOWN_ONLY;
             List<Word> filtered = allWords.stream()
-                    .filter(w -> !knownMap.getOrDefault(w, false))
+                    .filter(w -> knownMap.getOrDefault(w, false) == wantKnown)
                     .collect(Collectors.toList());
-            words.clear();
             if (filtered.isEmpty()) {
-                // 모르는 단어가 하나도 없으면(=전부 외움) 필터를 해제하고 전체를 보여준다.
+                // 조건에 맞는 단어가 하나도 없으면 필터를 해제하고 전체를 보여준다.
+                String message = wantKnown
+                        ? "아직 외운 단어가 없습니다.\n전체 단어를 보여줍니다."
+                        : "모든 단어를 외웠습니다!\n전체 단어를 보여줍니다.";
+                setFilterMode(FilterMode.ALL);
                 words.addAll(allWords);
-                reviewUnknownOnly = false;
-                if (unknownOnlyCheckBox != null) {
-                    unknownOnlyCheckBox.setSelected(false);
+                if (isShowing()) {
+                    JOptionPane.showMessageDialog(this, message, "알림", JOptionPane.INFORMATION_MESSAGE);
                 }
             } else {
                 words.addAll(filtered);
             }
-        } else {
-            words.clear();
-            words.addAll(allWords);
         }
         if (currentIndex >= words.size()) {
             currentIndex = 0;
         }
     }
 
+    /** 필터 모드를 바꾸고 두 체크박스 상태를 그에 맞춘다 (둘 중 하나만 켜질 수 있음). */
+    private void setFilterMode(FilterMode mode) {
+        filterMode = mode;
+        if (unknownOnlyCheckBox != null) {
+            unknownOnlyCheckBox.setSelected(mode == FilterMode.UNKNOWN_ONLY);
+            knownOnlyCheckBox.setSelected(mode == FilterMode.KNOWN_ONLY);
+        }
+    }
+
+    /** 체크박스를 눌렀을 때: 켜면 해당 모드로, 끄면 전체 보기로 전환한다. */
+    private void onFilterCheckBox(JCheckBox source, FilterMode mode) {
+        setFilterMode(source.isSelected() ? mode : FilterMode.ALL);
+        currentIndex = 0;
+        applyFilter();
+        showCurrentCard();
+    }
+
     private void initComponents() {
         setLayout(new BorderLayout(12, 12));
         ((JPanel) getContentPane()).setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        // 상단: 진행도 표시 + "모르는 단어만 보기" 체크박스
-        JPanel topPanel = new JPanel(new BorderLayout());
+        // 상단: "메인으로" 버튼 + 진행도 표시
+        JPanel topPanel = new JPanel(new BorderLayout(8, 0));
         progressLabel = new JLabel("", SwingConstants.CENTER);
         progressLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         topPanel.add(progressLabel, BorderLayout.CENTER);
 
-        unknownOnlyCheckBox = new JCheckBox("모르는 단어만 보기");
-        unknownOnlyCheckBox.setFocusable(false);
-        unknownOnlyCheckBox.addActionListener(e -> {
-            reviewUnknownOnly = unknownOnlyCheckBox.isSelected();
-            currentIndex = 0;
-            applyFilter();
-            showCurrentCard();
-        });
-        topPanel.add(unknownOnlyCheckBox, BorderLayout.EAST);
+        // 메인 화면에서 열린 경우에만 "메인으로" 버튼을 보여준다.
+        if (onBackToMenu != null) {
+            JButton backButton = new JButton("◀ 메인으로");
+            backButton.setFocusable(false);
+            backButton.setToolTipText("난이도 선택 화면으로 돌아갑니다 (Esc)");
+            backButton.addActionListener(e -> backToMenu());
+            topPanel.add(backButton, BorderLayout.WEST);
+        }
         add(topPanel, BorderLayout.NORTH);
 
         // 중앙: 카드 (둥근 모서리 + 그림자, 앞/뒤 면 배경색 구분)
@@ -219,9 +254,19 @@ public class FlashCardFrame extends JFrame {
         prevButton = new JButton("◀ 이전");
         flipButton = new JButton("뒤집기 (Space)");
         nextButton = new JButton("다음 ▶");
-        shuffleButton = new JButton("섞기");
+        shuffleButton = new JButton("섞기 (S)");
+        firstButton = new JButton("처음으로 (Home)");
         knownToggleButton = new JButton("✔ 외운 단어로 표시");
         knownToggleButton.setForeground(ACCENT_COLOR);
+
+        // 보기 필터: 두 체크박스 중 하나만 켜질 수 있다. 둘 다 꺼져 있으면 전체 보기.
+        unknownOnlyCheckBox = new JCheckBox("모르는 단어만 보기");
+        knownOnlyCheckBox = new JCheckBox("외운 단어만 보기");
+        unknownOnlyCheckBox.addActionListener(e -> onFilterCheckBox(unknownOnlyCheckBox, FilterMode.UNKNOWN_ONLY));
+        knownOnlyCheckBox.addActionListener(e -> onFilterCheckBox(knownOnlyCheckBox, FilterMode.KNOWN_ONLY));
+        JPanel filterRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 16, 0));
+        filterRow.add(unknownOnlyCheckBox);
+        filterRow.add(knownOnlyCheckBox);
 
         // 버튼이 포커스를 갖지 않게 해서, 스페이스바 등 단축키가 버튼 클릭이 아니라
         // installKeyboardShortcuts()에 등록한 동작으로만 처리되게 한다.
@@ -229,14 +274,25 @@ public class FlashCardFrame extends JFrame {
         flipButton.setFocusable(false);
         nextButton.setFocusable(false);
         shuffleButton.setFocusable(false);
+        firstButton.setFocusable(false);
         knownToggleButton.setFocusable(false);
+        unknownOnlyCheckBox.setFocusable(false);
+        knownOnlyCheckBox.setFocusable(false);
 
-        bgc.gridx = 0; bgc.gridy = 0; buttonPanel.add(prevButton, bgc);
-        bgc.gridx = 1; bgc.gridy = 0; buttonPanel.add(flipButton, bgc);
-        bgc.gridx = 2; bgc.gridy = 0; buttonPanel.add(nextButton, bgc);
-        bgc.gridx = 0; bgc.gridy = 1; bgc.gridwidth = 3;
-        buttonPanel.add(shuffleButton, bgc);
+        // "섞기"와 "처음으로"는 한 줄에 반씩
+        JPanel orderRow = new JPanel(new java.awt.GridLayout(1, 2, 8, 0));
+        orderRow.add(shuffleButton);
+        orderRow.add(firstButton);
+
+        bgc.gridx = 0; bgc.gridy = 0; bgc.gridwidth = 3;
+        buttonPanel.add(filterRow, bgc);
+        bgc.gridwidth = 1;
+        bgc.gridx = 0; bgc.gridy = 1; buttonPanel.add(prevButton, bgc);
+        bgc.gridx = 1; bgc.gridy = 1; buttonPanel.add(flipButton, bgc);
+        bgc.gridx = 2; bgc.gridy = 1; buttonPanel.add(nextButton, bgc);
         bgc.gridx = 0; bgc.gridy = 2; bgc.gridwidth = 3;
+        buttonPanel.add(orderRow, bgc);
+        bgc.gridx = 0; bgc.gridy = 3; bgc.gridwidth = 3;
         buttonPanel.add(knownToggleButton, bgc);
 
         add(buttonPanel, BorderLayout.SOUTH);
@@ -245,6 +301,7 @@ public class FlashCardFrame extends JFrame {
         nextButton.addActionListener(e -> nextCard());
         flipButton.addActionListener(e -> flipCard());
         shuffleButton.addActionListener(e -> shuffleCards());
+        firstButton.addActionListener(e -> goToFirstCard());
         knownToggleButton.addActionListener(e -> toggleKnownForCurrentWord());
     }
 
@@ -257,6 +314,16 @@ public class FlashCardFrame extends JFrame {
         bindKey(root, KeyEvent.VK_RIGHT, "next", e -> nextCard());
         bindKey(root, KeyEvent.VK_S, "shuffle", e -> shuffleCards());
         bindKey(root, KeyEvent.VK_K, "toggleKnown", e -> toggleKnownForCurrentWord());
+        bindKey(root, KeyEvent.VK_HOME, "first", e -> goToFirstCard());
+        if (onBackToMenu != null) {
+            bindKey(root, KeyEvent.VK_ESCAPE, "backToMenu", e -> backToMenu());
+        }
+    }
+
+    /** 현재 창을 닫고 메인 화면으로 돌아간다. 진도는 이미 DB에 저장되어 있다. */
+    private void backToMenu() {
+        dispose();
+        onBackToMenu.run();
     }
 
     private void bindKey(JComponent component, int keyCode, String name, java.util.function.Consumer<ActionEvent> action) {
@@ -282,6 +349,7 @@ public class FlashCardFrame extends JFrame {
             nextButton.setEnabled(false);
             flipButton.setEnabled(false);
             shuffleButton.setEnabled(false);
+            firstButton.setEnabled(false);
             knownToggleButton.setEnabled(false);
             return;
         }
@@ -289,6 +357,7 @@ public class FlashCardFrame extends JFrame {
         nextButton.setEnabled(true);
         flipButton.setEnabled(true);
         shuffleButton.setEnabled(true);
+        firstButton.setEnabled(true);
         knownToggleButton.setEnabled(true);
         Word word = words.get(currentIndex);
         showingMeaning = false;
@@ -356,10 +425,27 @@ public class FlashCardFrame extends JFrame {
         }
         knownMap.put(word, nowKnown);
 
-        if (reviewUnknownOnly && nowKnown) {
-            // "모르는 단어만 보기" 모드에서 방금 외운 단어는 목록에서 바로 제거한다.
-            applyFilter();
+        // 필터 조건에서 벗어난 단어(모르는 단어만 보기에서 외움 처리 / 외운 단어만 보기에서 취소)는
+        // 목록에서 바로 뺀다. 섞은 순서를 유지하려고 applyFilter() 대신 현재 단어만 제거한다.
+        boolean leavesFilter = (filterMode == FilterMode.UNKNOWN_ONLY && nowKnown)
+                || (filterMode == FilterMode.KNOWN_ONLY && !nowKnown);
+        if (leavesFilter) {
+            words.remove(currentIndex);
+            if (words.isEmpty()) {
+                applyFilter(); // 남은 단어가 없으면 안내 후 전체 보기로 전환
+            } else if (currentIndex >= words.size()) {
+                currentIndex = 0;
+            }
         }
+        showCurrentCard();
+    }
+
+    /** 현재 목록의 1번 단어로 돌아간다. */
+    private void goToFirstCard() {
+        if (words.isEmpty()) {
+            return;
+        }
+        currentIndex = 0;
         showCurrentCard();
     }
 
