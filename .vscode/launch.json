@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Main",
+            "request": "launch",
+            "mainClass": "flash_card/flashcard.Main",
+            "projectName": "flash_card"
+        },
+        {
+            "type": "java",
+            "name": "FlashCard (메인 메뉴)",
+            "request": "launch",
+            "mainClass": "flashcard.Main",
+            "projectName": "flash_card",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "FlashCard - Easy 덱",
+            "request": "launch",
+            "mainClass": "flashcard.Main",
+            "projectName": "flash_card",
+            "args": "easy",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "FlashCard - Hard 덱",
+            "request": "launch",
+            "mainClass": "flashcard.Main",
+            "projectName": "flash_card",
+            "args": "hard",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
