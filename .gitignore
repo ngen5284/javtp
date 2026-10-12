@@ -8,3 +8,8 @@ test.db
 # Local bundle duplicating data/ and lib/
 data.zip
 data/progress.db
+data/users.db
+users.db
+
+# 원본 압축 파일
+*.zip
