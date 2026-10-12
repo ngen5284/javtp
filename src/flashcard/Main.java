@@ -32,7 +32,7 @@ public class Main {
         	try {
         		ProgressRepository progress = new SqliteProgressRepository();
         		if(deck == null) {
-        			new MainMenuFrame(Main::createWordRepository, progress).setVisible(true);
+        			new LoginApp().setVisible(true);
         		} else {
         			new FlashCardFrame(createWordRepository(deck), progress, deck).setVisible(true);
         		}
@@ -44,7 +44,7 @@ public class Main {
     });
 }
     
-    private static WordRepository createWordRepository(String deck) {
+    public static WordRepository createWordRepository(String deck) {
     	return deck.equals("sample")
     			? new SampleWordRepository()
     			: new SqliteWordRepository(Path.of("data", deck + ".db"));
