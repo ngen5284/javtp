@@ -2,7 +2,6 @@ package flashcard.progress;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 학습 진도 저장 모듈의 신규 기능(취약 단어 분석 & 일일 학습량 통계)을 시연하는 데모 클래스.

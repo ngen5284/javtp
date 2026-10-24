@@ -1,6 +1,6 @@
-package flashcard;
+package flashcard.gui;
 
-import flashcard.gui.MainMenuFrame;
+import flashcard.Main;
 import flashcard.progress.SqliteProgressRepository;
 
 import java.awt.CardLayout;

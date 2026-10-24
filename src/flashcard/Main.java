@@ -1,5 +1,6 @@
 package flashcard;
 
+import flashcard.gui.LoginApp;
 import flashcard.data.SampleWordRepository;
 import flashcard.data.SqliteWordRepository;
 import flashcard.data.WordRepository;
@@ -25,7 +26,7 @@ public class Main {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {
-            // Keep Swing's default theme if the platform theme is unavailable.
+            
         }
 
         SwingUtilities.invokeLater(() -> {
